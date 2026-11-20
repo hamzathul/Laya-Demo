@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laya Playground</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="/static/playground.css?v=1">
+</head>
+<body>
+
+<header class="top">
+  <a class="logo" href="#top">laya</a>
+  <nav>
+    <a href="#playground">Playground</a>
+    <a href="#api">API</a>
+    <a href="#types">Question types</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <div class="status">
+    <span class="pill" id="st-model"><i></i><b>model</b><em>loading…</em></span>
+    <span class="pill" id="st-ocr"><i></i><b>ocr</b><em>checking…</em></span>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <p class="eyebrow">Laya · typed decisions</p>
+  <h1>Give it a text and a question.<br><span>Get a decision back.</span></h1>
+  <p class="lead">Laya never writes text. You send a <b>state</b> and a <b>typed question</b> — it answers with a choice, a yes/no probability, or a score, plus how confident it is. All questions run in one pass, locally, in under a second.</p>
+  <div class="flow">
+    <div><span>State</span><small>the text Laya reads</small></div>
+    <i>+</i>
+    <div><span>Questions</span><small>choice · yes/no · score</small></div>
+    <i>→</i>
+    <div class="out"><span>Decisions</span><small>answer + confidence</small></div>
+  </div>
+</section>
+
+<main id="playground">
+
+  <div class="examples-bar">
+    <span>Try an example</span>
+    <div id="chips"></div>
+  </div>
+
+  <div class="pg">
+
+    <!-- ============ 01 INPUT ============ -->
+    <section class="card" id="input-card">
+      <div class="card-head">
+        <h2><span class="n">01</span> Input</h2>
+        <div class="head-tools">
+          <button class="link" id="clear">Clear</button>
+          <button class="link" id="reset">Reset</button>
+        </div>
+      </div>
+
+      <div class="field-head">
+        <label for="state">State</label>
+        <span class="counter" id="counter">0 / 20,000</span>
+      </div>
+      <textarea id="state" spellcheck="false" placeholder="The text Laya should read — an email, a ticket, notes, a clause, or any document text."></textarea>
+      <div class="ocr-row">
+        <button class="link" id="ocr-btn">Read text from an image (OCR)</button>
+        <input type="file" id="file" accept="image/*" hidden>
+        <span class="muted" id="ocr-note"></span>
+      </div>
+
+      <div class="field-head q-title">
+        <label>Questions</label>
+        <span class="counter" id="qcount"></span>
+      </div>
+      <div id="questions"></div>
+      <button class="add" id="add-q">+ Add question</button>
+
+      <div class="run-row">
+        <button class="run" id="run">Run Laya <span>↗</span></button>
+        <span class="muted">Ctrl + Enter · runs locally, no quota</span>
+      </div>
+    </section>
+
+    <!-- ============ 02 OUTPUT ============ -->
+    <section class="card" id="output-card">
+      <div class="card-head">
+        <h2><span class="n">02</span> Output</h2>
+        <div class="tabs" id="out-tabs">
+          <button class="on" data-out="result">Result</button>
+          <button data-out="json">JSON</button>
+        </div>
+      </div>
+      <div id="result"></div>
+      <pre class="json" id="json" hidden></pre>
+    </section>
+
+  </div>
+
+  <!-- ============ API ============ -->
+  <section class="card api" id="api">
+    <div class="card-head">
+      <h2><span class="n">03</span> The API call <small>same fields as the form above — it updates as you type</small></h2>
+      <button class="link" id="copy">Copy</button>
+    </div>
+    <div class="tabs" id="api-tabs">
+      <button class="on" data-api="curl">cURL</button>
+      <button data-api="python">Python</button>
+      <button data-api="js">JavaScript</button>
+      <button data-api="request">Request body</button>
+      <button data-api="response">Response body</button>
+    </div>
+    <p class="api-note" id="api-note"></p>
+    <pre class="code" id="code"></pre>
+  </section>
+
+  <!-- ============ TYPES ============ -->
+  <section class="types" id="types">
+    <h2>Three kinds of question</h2>
+    <p class="sub">Pick the type that matches the decision you need. Sample outputs below are illustrations, not live results.</p>
+    <div class="type-grid">
+      <article>
+        <div class="ico choice">⑂</div>
+        <h3>Choice</h3>
+        <p>Pick exactly one option from a list you write. Each option has a short meaning that Laya reads.</p>
+        <div class="demo">
+          <div class="demo-q">Which team handles this?</div>
+          <div class="demo-bar"><span>billing</span><i style="width:92%"></i><b>92%</b></div>
+          <div class="demo-bar dim"><span>delivery</span><i style="width:5%"></i><b>5%</b></div>
+          <div class="demo-bar dim"><span>other</span><i style="width:3%"></i><b>3%</b></div>
+        </div>
+        <code>answer: "billing" · probs per option</code>
+      </article>
+      <article>
+        <div class="ico score">▥</div>
+        <h3>Score</h3>
+        <p>Rate on a scale you define. Write the levels from lowest to highest; Laya returns a number on that scale.</p>
+        <div class="demo">
+          <div class="demo-q">How urgent is this?</div>
+          <div class="demo-score"><b>1.4</b><span>/ 3</span></div>
+          <div class="scale"><i style="left:46%"></i></div>
+          <div class="scale-l"><span>0 no rush</span><span>3 drop everything</span></div>
+        </div>
+        <code>answer: 1.4 · probs per level</code>
+      </article>
+      <article>
+        <div class="ico yn">◐</div>
+        <h3>Yes / No</h3>
+        <p>Ask a true-or-false question. Laya returns the probability the answer is yes.</p>
+        <div class="demo">
+          <div class="demo-q">Is the customer owed money?</div>
+          <div class="demo-yn"><b class="yes">YES</b><span>p_yes = 0.91</span></div>
+          <div class="yn-track"><i style="width:91%"></i></div>
+        </div>
+        <code>answer: "yes" · p_yes: 0.91</code>
+      </article>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="faq" id="faq">
+    <h2>Questions developers ask</h2>
+    <details><summary>Does Laya write text?</summary><p>No. It never generates text. It reads your state and your question, and returns a typed decision: one of your options, a yes/no probability, or a number on your scale.</p></details>
+    <details><summary>What does “confidence” mean?</summary><p>How sure Laya is about that one answer, from 0 to 1. A low value is a good signal to send the case to a person instead of acting automatically.</p></details>
+    <details><summary>Why does the wording of options matter?</summary><p>Laya reads the question and each option’s meaning as part of its input. Clearer meanings give clearer decisions — try rewording an option and running again.</p></details>
+    <details><summary>Can I ask several things at once?</summary><p>Yes. Add up to 8 questions of any type; they are answered together in a single pass. The JSON tab shows every answer.</p></details>
+    <details><summary>Is this the real model?</summary><p>Yes. This page calls the Laya model running on this machine. The Result tab is a readable view of Laya’s answer; the JSON tab includes Laya’s own raw output, untouched.</p></details>
+    <details><summary>How does the image option work?</summary><p>Windows OCR turns the image into text, and that text becomes the state. Laya then answers your questions about the text — it is not a vision model.</p></details>
+  </section>
+
+</main>
+
+<footer>Laya local playground · every answer on this page comes from the Laya model, not from templates or rules.</footer>
+
+<script src="/static/examples.js"></script>
+<script src="/static/playground.js?v=1"></script>
+</body>
+</html>

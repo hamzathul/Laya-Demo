@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laya — System 1 decision demos</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="/static/style.css?v=5">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">laya</div>
+    <div class="tagline">System 1 decision demos <span>· local · no text generation</span></div>
+  </div>
+  <div class="lanes">
+    <div class="lane" id="lane-text"><span class="dot"></span><span class="lane-label">text lane</span><span class="lane-meta">loading…</span></div>
+    <div class="lane" id="lane-ocr"><span class="dot"></span><span class="lane-label">ocr lane</span><span class="lane-meta">checking…</span></div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="email">Email</button>
+  <button class="tab" data-tab="support">Support</button>
+  <button class="tab" data-tab="meeting">Meeting</button>
+  <button class="tab" data-tab="contract">Contract</button>
+  <button class="tab" data-tab="vision">Invoice photo</button>
+  <button class="tab" data-tab="custom">Custom</button>
+</nav>
+
+<main>
+
+  <section class="tab-panel active" id="panel-email">
+    <div class="panel input-panel">
+      <div class="examples" data-kind="email"></div>
+      <textarea id="input-email" placeholder="Paste an email…" spellcheck="false"></textarea>
+      <div class="input-actions">
+        <span class="hint">Ctrl + Enter to run</span>
+        <button class="primary" data-run="email">Analyze</button>
+      </div>
+    </div>
+    <div class="panel output-panel" id="out-email">
+      <div class="placeholder">Click an example above, or paste an email and press Analyze.</div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-support">
+    <div class="panel input-panel">
+      <div class="examples" data-kind="support"></div>
+      <textarea id="input-support" placeholder="Paste a customer complaint…" spellcheck="false"></textarea>
+      <div class="input-actions">
+        <span class="hint">Ctrl + Enter to run</span>
+        <button class="primary" data-run="support">Analyze</button>
+      </div>
+    </div>
+    <div class="panel output-panel" id="out-support">
+      <div class="placeholder">Click an example above, or paste a complaint and press Analyze.</div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-meeting">
+    <div class="panel input-panel">
+      <div class="examples" data-kind="meeting"></div>
+      <textarea id="input-meeting" placeholder="Paste meeting notes…" spellcheck="false"></textarea>
+      <div class="input-actions">
+        <span class="hint">Ctrl + Enter to run</span>
+        <button class="primary" data-run="meeting">Extract</button>
+      </div>
+    </div>
+    <div class="panel output-panel" id="out-meeting">
+      <div class="placeholder">Click an example above, or paste meeting notes and press Extract.</div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-contract">
+    <div class="panel input-panel">
+      <div class="examples" data-kind="contract"></div>
+      <textarea id="input-contract" placeholder="Paste a contract excerpt…" spellcheck="false"></textarea>
+      <div class="input-actions">
+        <span class="hint">Ctrl + Enter to run</span>
+        <button class="primary" data-run="contract">Screen</button>
+      </div>
+    </div>
+    <div class="panel output-panel" id="out-contract">
+      <div class="placeholder">Click an example above, or paste a contract and press Screen.</div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-vision">
+    <div class="panel input-panel">
+      <div class="examples" data-kind="vision"></div>
+      <div class="dropzone" id="drop-vision" tabindex="0">
+        <input type="file" id="file-vision" accept="image/*" hidden>
+        <div class="drop-inner">
+          <strong>Drop an invoice, credit note or receipt</strong>
+          <span>or click to choose a file · Ctrl+V to paste an image</span>
+        </div>
+        <img id="preview-vision" alt="Selected document" hidden>
+      </div>
+      <div class="input-actions">
+        <span class="hint">OCR + text lane · about a second per image</span>
+        <button class="primary" data-run="vision">Read document</button>
+      </div>
+    </div>
+    <div class="panel output-panel" id="out-vision">
+      <div class="placeholder">Click a sample above, drop a file, or paste a screenshot.</div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-custom">
+    <div class="panel input-panel">
+      <div class="examples" id="presets-custom"></div>
+      <label class="field-label" for="input-custom">State — the text Laya reads</label>
+      <textarea id="input-custom" placeholder="Paste an email, note, clause, or document text…" spellcheck="false"></textarea>
+      <div id="questions-custom"></div>
+      <button class="ghost add-question" id="add-question">+ Add question</button>
+      <div class="input-actions">
+        <span class="hint">1–6 questions · 2–12 choices each · Ctrl + Enter to run</span>
+        <button class="primary" data-run="custom">Ask Laya</button>
+      </div>
+    </div>
+    <div class="panel output-panel" id="out-custom">
+      <div class="placeholder">Pick a standard above, edit the state, questions and choices, then Ask Laya.</div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/examples.js?v=5"></script>
+<script src="/static/app.js?v=5"></script>
+</body>
+</html>
