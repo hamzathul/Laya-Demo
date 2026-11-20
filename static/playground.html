@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Laya Playground</title>
 <link rel="icon" href="data:," />
-<link rel="stylesheet" href="/static/playground.css?v=1">
+<link rel="stylesheet" href="/static/playground.css?v=2">
 </head>
 <body>
 
@@ -13,7 +13,7 @@
   <a class="logo" href="#top">laya</a>
   <div class="status">
     <span class="pill" id="st-model"><i></i><b>model</b><em>loading…</em></span>
-    <span class="pill" id="st-ocr"><i></i><b>ocr</b><em>checking…</em></span>
+    <span class="pill" id="st-vision"><i></i><b>vision</b><em>loads on first image</em></span>
   </div>
 </header>
 
@@ -54,10 +54,13 @@
         <span class="counter" id="counter">0 / 20,000</span>
       </div>
       <textarea id="state" spellcheck="false" placeholder="The text Laya should read — an email, a ticket, notes, a clause, or any document text."></textarea>
+      <div class="img-state" id="img-state" hidden>
+        <img id="img-preview" alt="uploaded image">
+        <button class="link" id="img-remove">Remove image</button>
+      </div>
       <div class="ocr-row">
-        <button class="link" id="ocr-btn">Read text from an image (OCR)</button>
-        <input type="file" id="file" accept="image/*" hidden>
-        <span class="muted" id="ocr-note"></span>
+        <button class="link" id="img-btn">Use an image as the state (vision)</button>
+        <input type="file" id="img-file" accept="image/*" hidden>
       </div>
 
       <div class="field-head q-title">
@@ -93,6 +96,6 @@
 <footer>Laya local playground · every answer on this page comes from the Laya model, not from templates or rules.</footer>
 
 <script src="/static/examples.js"></script>
-<script src="/static/playground.js?v=1"></script>
+<script src="/static/playground.js?v=5"></script>
 </body>
 </html>

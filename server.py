@@ -1,4 +1,4 @@
-"""Laya demo server: five decision demos plus a custom question editor, one text lane, OCR for images."""
+"""Laya demo server: five decision demos plus a custom question editor, a text lane and a vision lane."""
 
 import io
 import json
@@ -20,13 +20,6 @@ from PIL import Image
 from pydantic import BaseModel
 from typing import Literal, Optional
 
-try:  # Windows 10+ built-in OCR: no model download, ~0.1 s per page
-    from winocr import recognize_pil_sync
-    OCR_ERROR = None
-except Exception as exc:  # noqa: BLE001 - surfaced in /api/health
-    recognize_pil_sync = None
-    OCR_ERROR = f"{type(exc).__name__}: {exc}"[:500]
-
 BASE = os.path.dirname(os.path.abspath(__file__))
 SAMPLES = os.path.join(BASE, "samples")
 
@@ -39,7 +32,6 @@ MODEL_IDS = {
 DEVICE = os.getenv("LAYA_DEVICE") or None
 
 text_lock = threading.Lock()
-ocr_lock = threading.Lock()
 
 _text_agent = None
 _text_state = "loading"
@@ -56,6 +48,26 @@ def _load_text():
     except Exception as exc:  # noqa: BLE001 - surfaced in /api/health
         _text_error = f"{type(exc).__name__}: {exc}"[:500]
         _text_state = "error"
+
+
+_vision_agent = None
+_vision_state = "idle"  # idle -> loading -> ready | error (loaded on first image request)
+_vision_error = None
+vision_lock = threading.Lock()
+
+
+def _require_vision():
+    global _vision_agent, _vision_state, _vision_error
+    with vision_lock:
+        if _vision_agent is None:
+            _vision_state = "loading"
+            try:
+                _vision_agent = laya.load(vegaml=True, device=DEVICE)
+                _vision_state = "ready"
+            except Exception as exc:  # noqa: BLE001
+                _vision_state, _vision_error = "error", f"{type(exc).__name__}: {exc}"[:500]
+                raise HTTPException(503, f"Vision model failed to load: {_vision_error}")
+    return _vision_agent
 
 
 @asynccontextmanager
@@ -575,7 +587,7 @@ PO_RE = re.compile(r"\bPO[- ]?\d{2,4}[- ]?\d{3,5}\b", re.IGNORECASE)
 
 
 def payment_mark(text, doc_type):
-    """Read the stamp/status words from the OCR text; the model was unreliable at this."""
+    """Read the stamp/status words from text; the model was unreliable at this."""
     upper = text.upper()
     if "OVERDUE" in upper:
         return "overdue"
@@ -586,52 +598,6 @@ def payment_mark(text, doc_type):
     if doc_type == "statement":
         return "summary"
     return "open"
-
-
-@app.post("/api/invoice")
-def invoice(file: UploadFile = File(...), questions: Optional[str] = Form(None)):
-    if recognize_pil_sync is None:
-        raise HTTPException(503, f"OCR is unavailable: {OCR_ERROR}")
-    data = file.file.read()
-    if len(data) > 15_000_000:
-        raise HTTPException(400, "Image is larger than 15 MB.")
-    try:
-        image = Image.open(io.BytesIO(data)).convert("RGB")
-    except Exception:
-        raise HTTPException(400, "That file is not an image.")
-    image.thumbnail((2000, 2000))
-
-    start = time.perf_counter()
-    try:
-        with ocr_lock:
-            text = (recognize_pil_sync(image, "en") or {}).get("text") or ""
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(503, f"OCR failed on this image: {type(exc).__name__}: {exc}")
-    ocr_ms = _ms(start)
-    if len(text.strip()) < 20:
-        raise HTTPException(422, "Could not read enough text from that image — try a sharper photo.")
-
-    edits = None
-    if questions:
-        try:
-            edits = [EditQuestion(**item) for item in json.loads(questions)]
-        except Exception:
-            raise HTTPException(400, "Could not read the edited questions.")
-    invoice_questions = apply_edits(INVOICE_QUESTIONS, edits)
-    result = ask_text(text, invoice_questions)
-    doc = choice_answer(result, "doc_type")
-    po_numbers = list(dict.fromkeys(PO_RE.findall(text)))
-    return {
-        "ms": _ms(start),
-        "ocr_ms": ocr_ms,
-        "text": text.strip()[:4000],
-        "doc_type": doc,
-        "po_numbers": po_numbers[:20],
-        "po_count": len(po_numbers),
-        "payment_mark": payment_mark(text, doc["label"]),
-        "input": _explain([("single", text, invoice_questions)]),
-        "raw": result["answers"],
-    }
 
 
 # --------------------------------------------------------------------------- custom questions
@@ -744,7 +710,7 @@ def default_questions():
             [CONTRACT_TYPE, TOPIC_QUESTION],
             "“type” is asked once on the whole text; “topic” is asked once per numbered clause.",
         ),
-        "vision": _editable([INVOICE_QUESTIONS], "The text is read from the image by OCR, then sent as the state."),
+        "vision": _editable([INVOICE_QUESTIONS], "The image itself is the state (vision)."),
     }
 
 
@@ -828,22 +794,26 @@ def _pg_shape(q: PgQuestion, qid: str, answer: dict):
     return {**base, "answer": answer.get("choice"), "probs": probs}
 
 
+def _build_questions(qs):
+    if not 1 <= len(qs) <= 8:
+        raise HTTPException(400, "Give between 1 and 8 questions.")
+    questions, defs = {}, []
+    for index, q in enumerate(qs, 1):
+        qid = (q.id or f"q{index}").strip() or f"q{index}"
+        if qid in questions:
+            qid = f"{qid}_{index}"
+        questions[qid] = _pg_laya_question(q, index)
+        defs.append((qid, q))
+    return questions, defs
+
+
 @app.post("/api/decide")
 def decide(inp: PgIn):
     text = (inp.text or "").strip()
     if len(text) < 10:
         raise HTTPException(400, "Type or paste some text first (at least 10 characters).")
     text = text[:20000]
-    if not 1 <= len(inp.questions) <= 8:
-        raise HTTPException(400, "Give between 1 and 8 questions.")
-
-    questions, defs = {}, []
-    for index, q in enumerate(inp.questions, 1):
-        qid = (q.id or f"q{index}").strip() or f"q{index}"
-        if qid in questions:
-            qid = f"{qid}_{index}"
-        questions[qid] = _pg_laya_question(q, index)
-        defs.append((qid, q))
+    questions, defs = _build_questions(inp.questions)
 
     start = time.perf_counter()
     result = ask_text(text, questions)
@@ -854,10 +824,13 @@ def decide(inp: PgIn):
     }
 
 
-@app.post("/api/ocr")
-def ocr(file: UploadFile = File(...)):
-    if recognize_pil_sync is None:
-        raise HTTPException(503, f"OCR is unavailable: {OCR_ERROR}")
+@app.post("/api/decide-image")
+def decide_image(file: UploadFile = File(...), questions: str = Form(...)):
+    """The image itself is the state: Laya's vision reader answers the typed questions about it."""
+    try:
+        qs = [PgQuestion(**q) for q in json.loads(questions)]
+    except Exception:
+        raise HTTPException(400, "Questions are not valid.")
     data = file.file.read()
     if len(data) > 15_000_000:
         raise HTTPException(400, "Image is larger than 15 MB.")
@@ -865,16 +838,18 @@ def ocr(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(data)).convert("RGB")
     except Exception:
         raise HTTPException(400, "That file is not an image.")
-    image.thumbnail((2000, 2000))
+    image.thumbnail((1600, 1600))
+    laya_questions, defs = _build_questions(qs)
+    agent = _require_vision()
     start = time.perf_counter()
-    try:
-        with ocr_lock:
-            text = (recognize_pil_sync(image, "en") or {}).get("text") or ""
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(503, f"OCR failed on this image: {type(exc).__name__}: {exc}")
-    if len(text.strip()) < 20:
-        raise HTTPException(422, "Could not read enough text from that image — try a sharper photo.")
-    return {"ms": _ms(start), "text": text.strip()[:6000]}
+    with vision_lock:
+        result = agent.predict(image=image, questions=laya_questions)
+    return {
+        "ms": _ms(start),
+        "modality": "image",
+        "answers": [_pg_shape(q, qid, result["answers"][qid]) for qid, q in defs],
+        "raw": result["answers"],
+    }
 
 
 @app.get("/api/presets")
@@ -889,7 +864,7 @@ def presets():
 def health():
     return {
         "text": {"state": _text_state, "model": MODEL, "error": _text_error},
-        "ocr": {"state": "error" if recognize_pil_sync is None else "ready", "error": OCR_ERROR},
+        "vision": {"state": _vision_state, "error": _vision_error},
     }
 
 

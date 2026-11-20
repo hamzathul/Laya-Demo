@@ -94,18 +94,18 @@ const PRESETS = [
   },
   {
     key: "invoice",
-    label: "Invoice photo (OCR)",
+    label: "Invoice photo (vision)",
     src: "/samples/invoice-overdue.png",
     questions: () => [
       choice("doc_type", "Which title is printed on this document?", {
-        invoice: "INVOICE",
-        freight_invoice: "FREIGHT INVOICE",
-        credit_note: "CREDIT NOTE",
-        debit_note: "DEBIT NOTE",
-        receipt: "PAYMENT RECEIPT",
-        purchase_order: "PURCHASE ORDER",
-        statement: "ACCOUNT STATEMENT",
-        other: "no title, or a different title",
+        "Invoice": "Invoice",
+        "Freight Invoice": "Freight Invoice",
+        "Credit Note": "Credit Note",
+        "Debit Note": "Debit Note",
+        "Payment Receipt": "Payment Receipt",
+        "Purchase Order": "Purchase Order",
+        "Account Statement": "Account Statement",
+        "Other": "no title, or a different title",
       }),
       yesno("overdue", "Is this document marked OVERDUE?"),
       yesno("paid", "Is this document marked PAID?"),
@@ -236,6 +236,7 @@ async function applyPreset(key, runAfter = true) {
   const p = PRESETS.find((x) => x.key === key);
   if (!p) return;
   S.preset = key;
+  setImage(null);
   $$("#chips .chip").forEach((c) => c.classList.toggle("on", c.dataset.key === key));
   S.Q = p.questions();
   renderQuestions();
@@ -244,7 +245,13 @@ async function applyPreset(key, runAfter = true) {
   if (p.src) {
     $("#state").value = "";
     updateCounter();
-    await ocrFromUrl(p.src, runAfter);
+    try {
+      const blob = await (await fetch(p.src)).blob();
+      setImage(new File([blob], p.src.split("/").pop(), { type: blob.type || "image/png" }));
+    } catch (err) {
+      return showError(err.message);
+    }
+    if (runAfter) run();
   } else {
     $("#state").value = p.state();
     updateCounter();
@@ -258,54 +265,35 @@ $("#chips").addEventListener("click", (e) => {
 });
 $("#reset").addEventListener("click", () => S.preset && applyPreset(S.preset, false));
 $("#clear").addEventListener("click", () => {
+  setImage(null);
   $("#state").value = "";
   updateCounter();
   S.last = null;
   showResult();
 });
 
-/* ------------------------------------------------------------ OCR */
+/* ------------------------------------------------------------ image as state (vision) */
 
-async function ocrBlob(blob, name) {
-  $("#ocr-note").textContent = "Reading the image…";
-  const body = new FormData();
-  body.append("file", blob, name);
-  const res = await fetch("/api/ocr", { method: "POST", body });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : `OCR failed (${res.status})`);
-  $("#state").value = data.text;
-  updateCounter();
-  $("#ocr-note").textContent = `OCR read ${data.text.length} characters in ${data.ms} ms — the text above is what Laya will read.`;
+function setImage(file) {
+  if (S.imageUrl) URL.revokeObjectURL(S.imageUrl);
+  S.image = file;
+  S.imageUrl = file ? URL.createObjectURL(file) : null;
+  $("#img-state").hidden = !file;
+  if (file) $("#img-preview").src = S.imageUrl;
+  $("#state").hidden = !!file;
+  $("#counter").hidden = !!file;
+  $("label[for=state]").textContent = file ? "State (image)" : "State";
 }
 
-async function ocrFromUrl(src, runAfter) {
-  try {
-    $("#result").innerHTML = '<div class="loading">Reading the image (OCR)…</div>';
-    const blob = await (await fetch(src)).blob();
-    await ocrBlob(blob, src.split("/").pop());
-    if (runAfter) run();
-    else showResult();
-  } catch (err) {
-    $("#ocr-note").textContent = "";
-    showError(err.message);
-  }
-}
-
-$("#ocr-btn").addEventListener("click", () => $("#file").click());
-$("#file").addEventListener("change", async () => {
-  const f = $("#file").files[0];
-  if (!f) return;
-  try {
-    await ocrBlob(f, f.name || "image.png");
-    run();
-  } catch (err) {
-    $("#ocr-note").textContent = "";
-    showError(err.message);
-  }
-  $("#file").value = "";
+$("#img-btn").addEventListener("click", () => $("#img-file").click());
+$("#img-remove").addEventListener("click", () => setImage(null));
+$("#img-file").addEventListener("change", () => {
+  const f = $("#img-file").files[0];
+  if (f) setImage(f);
+  $("#img-file").value = "";
 });
 
-/* ------------------------------------------------------------ API panel */
+/* ------------------------------------------------------------ request */
 
 function cleanQuestion(q, i) {
   const out = { id: (q.id || `q${i + 1}`).trim() || `q${i + 1}`, type: q.type, instructions: q.instructions.trim() };
@@ -391,7 +379,7 @@ $("#out-tabs").addEventListener("click", (e) => {
 /* ------------------------------------------------------------ run */
 
 function validate(body) {
-  if (body.text.length < 10) return "Write or paste some state text first (at least 10 characters).";
+  if (!S.image && body.text.length < 10) return "Write or paste some state text first (at least 10 characters).";
   for (const [i, q] of body.questions.entries()) {
     if (q.instructions.length < 3) return `Q${i + 1} needs a question sentence.`;
     if (q.type === "choice" && q.choices.length < 2) return `Q${i + 1} needs at least two options.`;
@@ -417,7 +405,16 @@ async function run() {
   $("#json").hidden = true;
   $("#result").innerHTML = '<div class="loading">Laya is deciding…</div>';
   try {
-    const res = await fetch("/api/decide", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    let res;
+    if (S.image) {
+      $("#result").innerHTML = '<div class="loading">Laya is looking at the image… (the first run loads the vision model and can take a minute)</div>';
+      const fd = new FormData();
+      fd.append("file", S.image, S.image.name || "image.png");
+      fd.append("questions", JSON.stringify(body.questions));
+      res = await fetch("/api/decide-image", { method: "POST", body: fd });
+    } else {
+      res = await fetch("/api/decide", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : `Request failed (${res.status})`);
     S.last = data;
@@ -447,17 +444,20 @@ function lane(id, info, readyText) {
 }
 
 async function pollHealth() {
-  let again = true;
+  let delay = 3000;
   try {
     const h = await (await fetch("/api/health")).json();
     lane("#st-model", h.text, `${h.text.model} · ready`);
-    lane("#st-ocr", h.ocr, "windows · ready");
+    const v = $("#st-vision"), vs = h.vision.state;
+    v.classList.toggle("ready", vs === "ready");
+    v.classList.toggle("error", vs === "error");
+    $("em", v).textContent = vs === "ready" ? "ready" : vs === "error" ? "unavailable" : vs === "loading" ? "loading…" : "loads on first image";
+    v.title = h.vision.error || "";
     S.ready = h.text.state === "ready";
     setBusy(S.busy);
-    $("#ocr-btn").disabled = h.ocr.state !== "ready";
-    again = h.text.state === "loading";
+    delay = h.text.state === "loading" || h.vision.state === "loading" ? 2000 : 6000;
   } catch { /* retry */ }
-  if (again) setTimeout(pollHealth, 2000);
+  setTimeout(pollHealth, delay);
 }
 
 /* ------------------------------------------------------------ init */
