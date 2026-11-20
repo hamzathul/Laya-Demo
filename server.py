@@ -896,9 +896,3 @@ def health():
 @app.get("/")
 def index():
     return FileResponse(os.path.join(BASE, "static", "playground.html"))
-
-
-@app.get("/classic")
-def classic():
-    """The earlier tabbed demo, kept as it was."""
-    return FileResponse(os.path.join(BASE, "static", "index.html"))

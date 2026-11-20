@@ -115,7 +115,7 @@ const PRESETS = [
 
 /* ------------------------------------------------------------ app state */
 
-const S = { preset: null, Q: [], last: null, apiTab: "curl", outTab: "result", busy: false, ready: false };
+const S = { preset: null, Q: [], last: null, outTab: "result", busy: false, ready: false };
 
 function blankQuestion(type = "yes_no") {
   const n = S.Q.length + 1;
@@ -168,7 +168,6 @@ function renderQuestions() {
   $("#questions").innerHTML = S.Q.map(questionHTML).join("");
   $("#qcount").textContent = `${S.Q.length} of 8`;
   $("#add-q").disabled = S.Q.length >= 8;
-  refreshApi();
 }
 
 $("#questions").addEventListener("input", (e) => {
@@ -180,7 +179,6 @@ $("#questions").addEventListener("input", (e) => {
   else if (f === "label") q.choices[j].label = e.target.value;
   else if (f === "criteria") q.choices[j].criteria = e.target.value;
   else if (f === "level") q.levels[j] = e.target.value;
-  refreshApi();
 });
 
 $("#questions").addEventListener("click", (e) => {
@@ -228,7 +226,7 @@ function updateCounter() {
   $("#counter").textContent = `${n.toLocaleString()} / ${MAX_STATE.toLocaleString()}`;
 }
 $("#state").setAttribute("maxlength", MAX_STATE);
-$("#state").addEventListener("input", () => { updateCounter(); refreshApi(); });
+$("#state").addEventListener("input", () => { updateCounter(); });
 
 function buildChips() {
   $("#chips").innerHTML = PRESETS.map((p) => `<button class="chip" data-key="${p.key}">${esc(p.label)}</button>`).join("");
@@ -246,12 +244,10 @@ async function applyPreset(key, runAfter = true) {
   if (p.src) {
     $("#state").value = "";
     updateCounter();
-    refreshApi();
     await ocrFromUrl(p.src, runAfter);
   } else {
     $("#state").value = p.state();
     updateCounter();
-    refreshApi();
     if (runAfter) run();
   }
 }
@@ -266,7 +262,6 @@ $("#clear").addEventListener("click", () => {
   updateCounter();
   S.last = null;
   showResult();
-  refreshApi();
 });
 
 /* ------------------------------------------------------------ OCR */
@@ -281,7 +276,6 @@ async function ocrBlob(blob, name) {
   $("#state").value = data.text;
   updateCounter();
   $("#ocr-note").textContent = `OCR read ${data.text.length} characters in ${data.ms} ms — the text above is what Laya will read.`;
-  refreshApi();
 }
 
 async function ocrFromUrl(src, runAfter) {
@@ -326,17 +320,6 @@ function cleanQuestion(q, i) {
 
 const requestBody = () => ({ text: $("#state").value.trim(), questions: S.Q.map(cleanQuestion) });
 
-function toLaya(q) {
-  if (q.type === "choice") return { type: "choice", instructions: q.instructions, criteria: Object.fromEntries(q.choices.map((c) => [c.label, c.criteria || c.label])) };
-  if (q.type === "score") return { type: "score", instructions: q.instructions, criteria: q.levels };
-  const o = { type: "noul", instructions: q.instructions };
-  const c = {};
-  if (q.yes) c.true = q.yes;
-  if (q.no) c.false = q.no;
-  if (Object.keys(c).length) o.criteria = c;
-  return o;
-}
-
 function hl(text) {
   return esc(text).replace(
     /(&quot;(?:\\.|[^&\\]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?\b)/g,
@@ -346,48 +329,6 @@ function hl(text) {
     }
   );
 }
-
-const API_NOTES = {
-  curl: "Call the playground endpoint from a terminal. The JSON body is exactly what the form above builds.",
-  python: "Or skip HTTP and use the laya library directly: one agent.predict() call answers every question at once.",
-  js: "The same request from JavaScript (this is what this page does when you press Run).",
-  request: "POST /api/decide — request body. text is the state; questions is a list of typed questions.",
-  response: "What comes back: answers[] (one entry per question, shaped by type) and raw (Laya's own output, untouched).",
-};
-
-function refreshApi() {
-  const body = requestBody();
-  const json = JSON.stringify(body, null, 2);
-  let code = "", html = "";
-  if (S.apiTab === "curl") {
-    code = `curl -X POST http://127.0.0.1:8000/api/decide \\\n  -H "content-type: application/json" \\\n  -d '${json.replace(/'/g, "'\\''")}'`;
-  } else if (S.apiTab === "python") {
-    const qs = {};
-    body.questions.forEach((q) => (qs[q.id] = toLaya(q)));
-    code = `import laya\n\nagent = laya.load("multilingual")\n\nstate = ${JSON.stringify(body.text)}\n\nquestions = ${JSON.stringify(qs, null, 4)}\n\nresult = agent.predict(state, questions)\n\nfor question_id, answer in result["answers"].items():\n    print(question_id, answer)`;
-  } else if (S.apiTab === "js") {
-    code = `const res = await fetch("http://127.0.0.1:8000/api/decide", {\n  method: "POST",\n  headers: { "content-type": "application/json" },\n  body: JSON.stringify(${json.replace(/\n/g, "\n  ")}),\n});\n\nconst { answers } = await res.json();\nconsole.log(answers);`;
-  } else if (S.apiTab === "request") {
-    html = hl(json);
-  } else {
-    html = S.last ? hl(JSON.stringify(S.last, null, 2)) : esc("// Press Run Laya to see the response.");
-  }
-  $("#code").innerHTML = html || esc(code);
-  $("#api-note").textContent = API_NOTES[S.apiTab];
-  $$("#api-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.api === S.apiTab));
-}
-
-$("#api-tabs").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b) return;
-  S.apiTab = b.dataset.api;
-  refreshApi();
-});
-$("#copy").addEventListener("click", () => {
-  navigator.clipboard?.writeText($("#code").textContent);
-  $("#copy").textContent = "Copied ✓";
-  setTimeout(() => ($("#copy").textContent = "Copy"), 1200);
-});
 
 /* ------------------------------------------------------------ output */
 
@@ -481,7 +422,6 @@ async function run() {
     if (!res.ok) throw new Error(typeof data.detail === "string" ? data.detail : `Request failed (${res.status})`);
     S.last = data;
     showResult();
-    refreshApi();
   } catch (err) {
     showError(err.message);
   } finally {
