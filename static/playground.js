@@ -328,6 +328,58 @@ function bars(probs, winner, labelOf = (k) => k) {
       <span class="track"><i style="width:${pct(v)}%"></i></span><span class="pct">${pct(v)}%</span></div>`).join("")}</div>`;
 }
 
+/* ------------------------------------------------------------ what Laya receives and returns */
+
+function toLaya(q) {
+  if (q.type === "choice") return { type: "choice", instructions: q.instructions, criteria: Object.fromEntries(q.choices.map((c) => [c.label, c.criteria || c.label])) };
+  if (q.type === "score") return { type: "score", instructions: q.instructions, criteria: q.levels };
+  const o = { type: "noul", instructions: q.instructions };
+  const c = {};
+  if (q.yes) c.true = q.yes;
+  if (q.no) c.false = q.no;
+  if (Object.keys(c).length) o.criteria = c;
+  return o;
+}
+
+function snapshotInput() {
+  const body = requestBody();
+  const qs = {};
+  body.questions.forEach((q) => (qs[q.id] = toLaya(q)));
+  const image = S.image ? S.image.name || "image" : null;
+  const text = body.text.length > 500 ? body.text.slice(0, 500) + " …" : body.text;
+  return { image, state: image ? `<image: ${image}>` : text, qs };
+}
+
+const pre = (obj) => `<pre class="json">${hl(typeof obj === "string" ? obj : JSON.stringify(obj, null, 2))}</pre>`;
+
+function ioView() {
+  const inp = S.last && S.lastIn && !S.edited ? S.lastIn : snapshotInput();
+  const call = inp.image ? "agent.predict(image=img, questions=questions)   # vision: the image is the state" : "agent.predict(state, questions)   # text";
+  const raw = S.last ? pre(S.last.raw) : `<div class="muted">Press <b>Run Laya</b> to see Laya's output.</div>`;
+  return `<div class="io-view">
+    <h3>Input to Laya</h3>
+    <p class="io-note">The <b>state</b> is a text, or an image in vision mode, plus a dictionary of typed <b>questions</b>.${S.last && !S.edited ? " This is exactly what the last run sent." : " It updates as you edit the form."}</p>
+    <div class="sub-label">state</div>
+    <pre class="json">${esc(inp.state)}</pre>
+    <div class="sub-label">questions</div>
+    ${pre(inp.qs)}
+    <p class="io-note"><code>"noul"</code> is Laya's name for a yes/no question. A yes/no hint becomes <code>criteria.true</code> / <code>criteria.false</code>.</p>
+    <pre class="json">${esc(call)}</pre>
+    <h3>Output from Laya</h3>
+    <p class="io-note">The <code>raw</code> field of the response: Laya's own output, untouched.</p>
+    ${raw}
+  </div>`;
+}
+
+function ioDetails(a) {
+  const q = S.lastIn?.qs?.[a.id];
+  const out = S.last?.raw?.[a.id];
+  if (!q || !out) return "";
+  return `<details class="io"><summary>Show Laya input / output</summary>
+    <div class="sub-label">input · questions["${esc(a.id)}"]</div>${pre(q)}
+    <div class="sub-label">output · raw["${esc(a.id)}"]</div>${pre(out)}</details>`;
+}
+
 function answerCard(a) {
   const [icon, name] = MODES[a.type];
   const review = a.abstain || a.route === "review" ? '<div class="review">⚠ Laya flags this one for review</div>' : "";
@@ -346,11 +398,11 @@ function answerCard(a) {
   return `<div class="ans">
     <div class="ans-top"><span class="tag ${a.type}">${icon} ${name}</span><span class="ans-id">${esc(a.id)}</span>
       <span class="conf ${confClass(a.confidence)}" title="How sure Laya is about this answer (0–1)">confidence ${a.confidence.toFixed(2)}</span></div>
-    <div class="ans-q">${esc(a.question)}</div>${main}${review}</div>`;
+    <div class="ans-q">${esc(a.question)}</div>${main}${review}${ioDetails(a)}</div>`;
 }
 
 function showResult() {
-  const box = $("#result"), json = $("#json");
+  const box = $("#result"), json = $("#json"), laya = $("#laya");
   if (!S.last) {
     box.innerHTML = `<div class="empty"><h3>A little context. A clear decision.</h3>Pick an example or write your own state and questions, then press <b>Run Laya</b>.</div>`;
     json.innerHTML = hl("// Press Run Laya to see the response.");
@@ -358,6 +410,8 @@ function showResult() {
     box.innerHTML = `<div class="meta">${S.last.answers.length} question${S.last.answers.length > 1 ? "s" : ""} answered in one pass · ${S.last.ms} ms</div>` + S.last.answers.map(answerCard).join("");
     json.innerHTML = hl(JSON.stringify(S.last, null, 2));
   }
+  laya.innerHTML = S.outTab === "laya" ? ioView() : "";
+  laya.hidden = S.outTab !== "laya";
   box.hidden = S.outTab !== "result";
   json.hidden = S.outTab !== "json";
   $$("#out-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.out === S.outTab));
@@ -368,6 +422,11 @@ function showError(message) {
   showResult();
   $("#result").innerHTML = `<div class="error">${esc(message)}</div>`;
 }
+
+document.addEventListener("input", () => {
+  S.edited = true;
+  if (S.outTab === "laya" && !S.busy) showResult();
+});
 
 $("#out-tabs").addEventListener("click", (e) => {
   const b = e.target.closest("button");
@@ -399,6 +458,8 @@ async function run() {
   const body = requestBody();
   const problem = validate(body);
   if (problem) return showError(problem);
+  S.lastIn = snapshotInput();
+  S.edited = false;
   setBusy(true);
   S.outTab = "result";
   $("#result").hidden = false;
