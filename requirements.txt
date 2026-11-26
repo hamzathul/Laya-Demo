@@ -1,2 +1,2 @@
-laya[serve]==0.4.38
+laya[serve,vision]==0.4.38
 pillow>=9.0

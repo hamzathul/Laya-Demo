@@ -2,73 +2,79 @@
 const EXAMPLES = {
   email: [
     {
-      label: "Refund complaint",
-      text: `From: Priya Nair <priya.nair@northwind-retail.com>
-Subject: Charged twice for March — refund needed today
-
-Hi team,
-
-We were billed twice for March on invoice #4411 (INV-2026-0312). The duplicate charge is $2,480 and it has already cleared our card. I flagged this with your support line yesterday and got no reply.
-
-Please refund the duplicate today. If this is not resolved by Friday we will move our subscription to another vendor.
-
-Priya Nair
-Finance Manager, Northwind Retail`,
-    },
-    {
-      label: "Pricing enquiry",
-      text: `From: Daniel Okafor <d.okafor@brightpath.io>
-Subject: Pricing for 50 seats + SSO
-
-Hello,
-
-We are evaluating tools for our operations team (about 50 people) and need SSO and audit logs. Could you send pricing for the business tier, and let me know whether onboarding is included?
-
-We would also like a short demo next week if possible.
-
-Best,
-Daniel Okafor
-Head of Operations, Brightpath`,
-    },
-    {
-      label: "Production outage",
-      text: `From: ops@finch-payments.com
-Subject: URGENT — API returning 503 since 09:14 UTC
-
-Our checkout has been down for 40 minutes. Every call to your /v2/charges endpoint returns 503, and our error rate is 100%. We are losing roughly $8,000 per hour and our status page is already red.
-
-We need an engineer on this immediately. Incident channel: #finch-laya-outage.
-
-Ops on-call, Finch Payments`,
-    },
-    {
-      label: "GDPR question",
-      text: `From: Marta Silva <marta.silva@lumen-legal.eu>
-Subject: Data retention question
+      label: "Ceiling leak",
+      text: `From: Priya Nair <priya.nair@example.com>
+Subject: Water coming through the kitchen ceiling — Flat 4B
 
 Hi,
 
-Could you point me to your current data retention policy? Specifically, how long do you keep support attachments after an account is closed, and do you delete backups on the same schedule?
+Water started dripping through the kitchen ceiling about an hour ago, right next to the light fitting. I think it is coming from the flat above (5B) but nobody is answering the door. I have put buckets down and switched off the kitchen lights at the fuse box.
 
-No urgency — we are updating our vendor register.
+Please send someone as soon as possible — the ceiling plaster is starting to bulge.
+
+Priya Nair
+Flat 4B, Riverside Court`,
+    },
+    {
+      label: "Noise complaint",
+      text: `From: Daniel Okafor <d.okafor@example.com>
+Subject: Loud music from Flat 2C again
+
+Hello,
+
+This is the third weekend in a row that Flat 2C has played loud music past 1 a.m. I have spoken to them twice and nothing has changed. I work early shifts and it is affecting my sleep.
+
+Could you remind them of the building quiet hours, or tell me what the next step is?
 
 Thanks,
-Marta`,
+Daniel Okafor
+Flat 3C`,
+    },
+    {
+      label: "Lease renewal",
+      text: `From: Marta Silva <marta.silva@example.com>
+Subject: Renewing our lease for another year
+
+Hi,
+
+Our lease on Flat 1A ends on 31 January. We would like to renew for another 12 months. Could you let me know what the process is, and whether we need to sign anything before the end of December?
+
+We would also like to ask whether we can keep a small cat — happy to follow any pet policy.
+
+Best regards,
+Marta Silva`,
+    },
+    {
+      label: "Dripping tap",
+      text: `From: Tom Becker <tom.becker@example.com>
+Subject: Bathroom tap dripping
+
+Hi,
+
+The cold tap in our bathroom sink has been dripping for about a week, even when fully closed. It is not urgent, but it is getting worse. Any day next week works for a plumber — I work from home on Tuesdays and Thursdays.
+
+Thanks,
+Tom
+Flat 6D`,
     },
   ],
 
   support: [
     {
-      label: "Double charge, no order",
-      text: `My payment was deducted twice, but my order was never placed. The money left my account on Monday and I still have no confirmation email. I need this fixed today — I have already been charged $89.99 twice.`,
+      label: "Clicked phishing link",
+      text: `I think I clicked on a fake Microsoft link in an email about a shared invoice about 20 minutes ago. It asked for my password and I typed it in before I noticed the address looked wrong. Now I am getting MFA prompts on my phone that I did not request. What should I do? I have not approved any of them.`,
     },
     {
-      label: "Damaged delivery",
-      text: `The blender arrived with a cracked jug and the box was crushed on one side. I ordered it for my mother's birthday this weekend. I want a replacement, not a refund, and I need it before Saturday.`,
+      label: "VPN down for office",
+      text: `Nobody in the Pune office can connect to the VPN since 9:30 this morning. It just says "connection timed out". About 40 of us are affected and we cannot reach the ERP or the shared drives. Clients are waiting on reports due at noon.`,
     },
     {
-      label: "Account locked",
-      text: `I am locked out of my account and the reset email never arrives. I have a client presentation in two hours and all my slides are in your cloud drive. Please unlock it or tell me another way in. I have tried three times.`,
+      label: "Laptop won't boot",
+      text: `My laptop shows a black screen with a blinking cursor after the logo and does not get to Windows. I tried restarting three times. I have a backup laptop at home but my presentation for tomorrow is on this one, and I am not sure it was synced to OneDrive.`,
+    },
+    {
+      label: "New joiner setup",
+      text: `We have a new analyst, Anika Rao, starting on Monday 1 December in the Finance team. She will need a laptop, an email account, access to the Finance shared folder and a Power BI licence. Her manager is Rahul Menon.`,
     },
   ],
 

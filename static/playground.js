@@ -20,24 +20,26 @@ const PRESETS = [
     label: "Support routing",
     state: () => EXAMPLES.support[0].text,
     questions: () => [
-      choice("team", "Which team should handle this?", {
-        billing: "charges, invoices, refunds, payments",
-        delivery: "shipping, courier, late or missing orders",
-        product_defect: "damaged, faulty or incorrect item",
-        account_access: "login, password reset, locked or compromised account",
-        other: "anything else",
+      choice("team", "Which IT team should handle this ticket?", {
+        network: "Wi-Fi, VPN, internet, office network or remote connection problems",
+        hardware: "laptop, monitor, printer, phone, dock or other physical device fault",
+        software: "an application crashing, not installing, or needing a licence",
+        access: "new joiner setup, permissions, shared folders, MFA or password reset",
+        security: "phishing email, suspicious login, malware, or a lost or stolen device",
       }),
-      choice("sentiment", "What is the customer's emotional tone?", {
-        angry: "hostile, threatening to leave, or writing in capitals",
-        frustrated: "unhappy about a problem and wants it fixed, even if polite",
-        neutral: "a routine question with no problem or complaint",
+      choice("impact", "How many people are affected?", {
+        single_user: "only the person who raised the ticket",
+        team: "a team, a floor or one office",
+        company_wide: "everyone, or a system the whole company relies on",
       }),
-      yesno("owed_money", "Is the customer owed money?"),
+      yesno("security_risk", "Could company data or accounts be at risk?",
+        "a click on a suspicious link, a lost device, unknown logins or leaked credentials",
+        "an ordinary fault or request with no sign of compromise"),
       score("urgency", "How urgent is this?", [
-        "no urgency, can wait several days",
-        "should be answered today",
-        "blocking the customer's work or money is at risk",
-        "outage, security incident, legal threat or total loss of access",
+        "a request that can wait several days",
+        "an inconvenience with a workaround",
+        "someone cannot do their job until it is fixed",
+        "a security incident or many people blocked right now",
       ]),
     ],
   },
@@ -46,16 +48,22 @@ const PRESETS = [
     label: "Email triage",
     state: () => EXAMPLES.email[0].text,
     questions: () => [
-      choice("category", "Which category best describes this email?", {
-        complaint: "billing dispute, duplicate charge, refund demand, bad product or bad service",
-        sales_enquiry: "pricing, quote, demo, trial, purchase or partnership request",
-        urgent_request: "outage, security incident, blocked checkout, or a hard deadline within hours",
-        general_enquiry: "policy, documentation, hours, or vendor-register question",
+      choice("category", "Which category best describes this tenant email?", {
+        emergency_repair: "water leak, flooding, no heating, gas smell, power cut or a broken lock",
+        routine_maintenance: "a non-urgent repair such as a dripping tap, faulty appliance or broken blind",
+        neighbour_complaint: "noise, smells, parking, rubbish or behaviour of other residents",
+        lease_and_moving: "lease renewal, notice to leave, move-in or move-out, keys or inspections",
+        general_enquiry: "parking permits, deliveries, building rules or other questions",
       }),
-      yesno("needs_human", "Does a human need to reply personally?",
-        "the customer is upset, money or work is at risk, or the issue needs judgment",
-        "a routine question that a template can answer"),
-      score("upset", "How upset is the sender?", ["calm", "mildly annoyed", "clearly upset", "furious"]),
+      yesno("needs_visit", "Does someone need to visit the property?",
+        "a contractor, caretaker or property manager must attend in person",
+        "it can be handled by email or phone"),
+      score("urgency", "How quickly does this need action?", [
+        "within a couple of weeks",
+        "within a few days",
+        "within 24 hours",
+        "immediately: risk to safety or serious damage to the building",
+      ]),
     ],
   },
   {
@@ -261,7 +269,7 @@ async function applyPreset(key, runAfter = true) {
 
 $("#chips").addEventListener("click", (e) => {
   const chip = e.target.closest(".chip");
-  if (chip) applyPreset(chip.dataset.key);
+  if (chip) applyPreset(chip.dataset.key, false);
 });
 $("#reset").addEventListener("click", () => S.preset && applyPreset(S.preset, false));
 $("#clear").addEventListener("click", () => {
@@ -389,9 +397,9 @@ function answerCard(a) {
       <div class="yn-track"><i style="width:${pct(a.p_yes)}%"></i></div>
       <div class="scale-lab"><span>0 · no</span><span>1 · yes</span></div>`;
   } else if (a.type === "score") {
-    const near = String(Math.round(a.answer));
-    main = `<div><span class="ans-val">${a.answer.toFixed(2)}</span><span class="ans-sub">on a ${a.scale.min}–${a.scale.max} scale</span></div>
-      ${bars(a.probs, near, (k) => `${k} · ${a.levels[k] ?? ""}`)}`;
+    const top = Object.entries(a.probs).reduce((m, e) => (e[1] > m[1] ? e : m))[0];
+    main = `<div><span class="ans-val">${a.answer.toFixed(2)}</span><span class="ans-sub">weighted average on a ${a.scale.min}–${a.scale.max} scale · most likely level ${esc(top)}</span></div>
+      ${bars(a.probs, top, (k) => `${k} · ${a.levels[k] ?? ""}`)}`;
   } else {
     main = `<div><span class="ans-val">${esc(a.answer)}</span><span class="ans-sub">1 of ${Object.keys(a.probs).length} options</span></div>${bars(a.probs, a.answer)}`;
   }

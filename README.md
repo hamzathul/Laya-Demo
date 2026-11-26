@@ -49,8 +49,8 @@ Open <http://127.0.0.1:8000>. The header shows two dots: the text model and OCR.
 
 ## Suggested demo order
 
-1. **Email → Refund complaint** — complaint 100%, refund intent, human reply, apology template. Point at the probability bars. Then **Pricing enquiry** to show the same model flipping to sales/automated, and **Production outage** for urgent.
-2. **Support → Double charge** — frustrated, billing, medium, billing-fix template. Then **Account locked** for a critical priority.
+1. **Email triage → Ceiling leak** — a property-management tenant inbox: emergency repair, needs a visit, top urgency. Point at the probability bars. Then **Dripping tap** to show the same model flipping to routine maintenance with low urgency, and **Noise complaint** / **Lease renewal** for no visit needed.
+2. **Support routing → Clicked phishing link** — an internal IT service desk: security team, data at risk, top urgency. Then **VPN down for office** (network, company-wide), **Laptop won't boot** (hardware, single user) and **New joiner setup** (access, low urgency).
 3. **Meeting → Launch sync** — the speed showcase: ten lines, three actions with owners and dates, three decisions, in one batched pass. Then **Client kickoff** to show it picks up different names.
 4. **Contract → Services MSA** — type 100%, then each clause routed: Legal, Finance, Privacy. Then **Mutual NDA** and **Office lease**.
 5. **Invoice photo → Overdue invoice** — the OCR text appears alongside the decisions, so the audience can check them. Then walk the chips: standard, multi-PO (three PO chips appear), freight, credit note, debit note, receipt, statement. Drop or paste any document you brought.
